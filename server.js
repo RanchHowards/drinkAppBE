@@ -63,7 +63,7 @@ const typeDefs = gql`
   }
   type Mutation {
     addEvent(title: String): Event
-    createUser(username: String!, password: String!): User
+    createUser(username: String!, password: String!): Token
     login(username: String!, password: String!): Token
   }
 `
@@ -106,7 +106,12 @@ const resolvers = {
         const passwordHash = await bcrypt.hash(password, salt)
         const user = new User({ username, passwordHash })
         await user.save()
-        return user
+
+        const userForToken = {
+          username: user.username,
+          id: user._id,
+        }
+        return { value: jwt.sign(userForToken, JWT_SECRET) }
       } catch (error) {
         throw new UserInputError(error.message)
       }
