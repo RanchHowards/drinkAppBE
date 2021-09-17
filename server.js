@@ -1,10 +1,17 @@
-const express = require('express')
-const { ApolloServer, gql } = require('apollo-server-express')
+// const express = require('express')
+// const { ApolloServer, gql } = require('apollo-server-express')
 
 // const { graphqlHTTP } = require('express-graphql')
 // const { buildSchema } = require('graphql')
+// const cors = require('cors')
+const {
+  ApolloServer,
+  gql,
+  UserInputError,
+  AuthenticationError,
+} = require('apollo-server')
+
 const mongoose = require('mongoose')
-const cors = require('cors')
 require('dotenv').config()
 const bcrypt = require('bcrypt')
 const saltRounds = 10
@@ -12,9 +19,9 @@ const jwt = require('jsonwebtoken')
 
 const User = require('./models/user')
 const Event = require('./models/event')
-const { UserInputError, AuthenticationError } = require('apollo-server')
+// const { UserInputError, AuthenticationError } = require('apollo-server')
 
-const app = express()
+// const app = express()
 
 //MONGOOSE
 const JWT_SECRET = process.env.SECRET
@@ -131,7 +138,9 @@ const resolvers = {
         username: user.username,
         id: user._id,
       }
-      return { value: jwt.sign(userForToken, JWT_SECRET) }
+      return {
+        value: jwt.sign(userForToken, JWT_SECRET),
+      }
     },
   },
 }
@@ -150,12 +159,16 @@ const server = new ApolloServer({
   },
 })
 
-server.start().then((res) => {
-  server.applyMiddleware({ app })
-})
-app.use(cors())
+// server.start().then((res) => {
+//   server.applyMiddleware({ app })
+// })
+// app.use(cors())
 
-const PORT = 4000
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+// const PORT = 4000
+// app.listen(PORT, () => {
+//   console.log(`Server running on port ${PORT}`)
+// })
+server.listen().then(({ url, subscriptionsUrl }) => {
+  console.log(`Server ready at ${url}`)
+  console.log(`Subscriptions ready at ${subscriptionsUrl}`)
 })
