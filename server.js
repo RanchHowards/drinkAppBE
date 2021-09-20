@@ -49,11 +49,22 @@ const typeDefs = gql`
   type User {
     username: String!
     passwordHash: String
+    pic: String
+    drink: String
     id: ID!
   }
 
   type Token {
     value: String!
+  }
+  type Event {
+    title: String
+    host: User
+    attendees: [String]
+    location: String
+    eventType: String
+    eventPic: String
+    id: ID!
   }
 
   type Query {
@@ -62,14 +73,13 @@ const typeDefs = gql`
     allUsers: [User]
     me: User
   }
-  type Event {
-    title: String
-    host: User
-    attendees: [String]
-    id: ID!
-  }
   type Mutation {
-    addEvent(title: String): Event
+    addEvent(
+      title: String
+      eventType: String
+      eventPic: String
+      location: String
+    ): Event
     createUser(username: String!, password: String!): Token
     login(username: String!, password: String!): Token
   }
@@ -90,13 +100,16 @@ const resolvers = {
   },
 
   Mutation: {
-    addEvent: async (root, args, context) => {
-      const { currentUser } = context
+    addEvent: async (root, args, { currentUser }) => {
+      const { title, eventType, eventPic, location } = args
       if (!currentUser) {
         throw new AuthenticationError('NOT AUthorIZED, bub!!!')
       }
       const event = new Event({
-        title: args.title,
+        title,
+        eventType,
+        eventPic,
+        location,
         host: currentUser._id,
       })
       try {

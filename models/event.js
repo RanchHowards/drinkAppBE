@@ -17,6 +17,9 @@ const schema = new mongoose.Schema({
       ref: 'User',
     },
   ],
+  location: { type: String },
+  eventType: { type: String },
+  eventPic: { type: String },
 })
 
 module.exports = mongoose.model('Event', schema)

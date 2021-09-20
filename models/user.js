@@ -12,6 +12,8 @@ const schema = new mongoose.Schema({
     required: true,
     minlength: 2,
   },
+  pic: { type: String },
+  drink: { type: String },
 })
 
 module.exports = mongoose.model('User', schema)
