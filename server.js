@@ -89,6 +89,7 @@ const typeDefs = gql`
       eventId: ID!
     ): Event
     joinEvent(eventId: ID!, userId: ID!): Event
+    leaveEvent(eventId: ID!, userId: ID!): Event
     createUser(username: String!, password: String!): Token
     login(username: String!, password: String!): Token
   }
@@ -169,7 +170,22 @@ const resolvers = {
         event.attendees.push(userId)
         event.populate('attendees').execPopulate()
 
-        console.log(event)
+        await event.save()
+        return event
+      } catch (error) {
+        throw new Error(error.message)
+      }
+    },
+    leaveEvent: async (root, { userId, eventId }, { currentUser }) => {
+      if (!currentUser) {
+        throw new AuthenticationError('Not authorized from BE & LEAVEEvent')
+      }
+      try {
+        const update = { $pull: { attendees: userId } }
+        const event = await Event.findByIdAndUpdate(eventId, update, {
+          new: true,
+        }).populate('attendees')
+
         await event.save()
         return event
       } catch (error) {
