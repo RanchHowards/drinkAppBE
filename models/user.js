@@ -14,6 +14,12 @@ const schema = new mongoose.Schema({
   },
   pic: { type: String },
   drink: { type: String },
+  myEvents: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Event',
+    },
+  ],
 })
 
 module.exports = mongoose.model('User', schema)

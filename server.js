@@ -19,7 +19,6 @@ const jwt = require('jsonwebtoken')
 
 const User = require('./models/user')
 const Event = require('./models/event')
-// const { UserInputError, AuthenticationError } = require('apollo-server')
 
 // const app = express()
 
@@ -52,6 +51,7 @@ const typeDefs = gql`
     pic: String
     drink: String
     id: ID!
+    myEvents: [Event]
   }
 
   type Token {
@@ -60,7 +60,7 @@ const typeDefs = gql`
   type Event {
     title: String
     host: User
-    attendees: [String]
+    attendees: [User]
     location: String
     eventType: String
     eventPic: String
@@ -71,6 +71,7 @@ const typeDefs = gql`
     eventCount: Int!
     allEvents: [Event]
     allUsers: [User]
+    findEvent(eventId: ID!): Event
     me: User
   }
   type Mutation {
@@ -80,6 +81,14 @@ const typeDefs = gql`
       eventPic: String
       location: String
     ): Event
+    editEvent(
+      title: String
+      eventType: String
+      eventPic: String
+      location: String
+      eventId: ID!
+    ): Event
+    joinEvent(eventId: ID!, userId: ID!): Event
     createUser(username: String!, password: String!): Token
     login(username: String!, password: String!): Token
   }
@@ -89,13 +98,25 @@ const resolvers = {
   Query: {
     eventCount: () => Event.collection.countDocuments(),
     allEvents: async () => {
-      return await Event.find({}).populate('host')
+      return await Event.find({}).populate('host').populate('attendees')
     },
     allUsers: async () => {
       return await User.find({})
     },
-    me: (root, args, { currentUser }) => {
-      return currentUser
+    findEvent: async (root, { eventId }) => {
+      try {
+        return await Event.findById(eventId)
+      } catch (error) {
+        throw new Error('problem in BE with findEvent', error.message)
+      }
+    },
+    me: async (root, args, { currentUser }) => {
+      try {
+        const user = await User.findById(currentUser._id).populate('myEvents')
+        return user
+      } catch (error) {
+        throw new Error('something wrong on the BACKEND', error.message)
+      }
     },
   },
 
@@ -114,10 +135,46 @@ const resolvers = {
       })
       try {
         await event.save()
+        const user = await User.findById(currentUser._id)
+        user.myEvents.push(event._id) //can't use concat
+        await user.save()
       } catch (error) {
         throw new Error(error.message)
       }
       return event
+    },
+    editEvent: async (root, args, { currentUser }) => {
+      const { title, eventType, eventPic, location, eventId } = args
+      if (!currentUser) {
+        throw new AuthenticationError('Not authorized from BE & editEvent')
+      }
+      try {
+        const filter = { _id: eventId }
+        const update = { title, eventType, eventPic, location }
+        const event = await Event.findOneAndUpdate(filter, update, {
+          new: true,
+        })
+        await event.save()
+        return event
+      } catch (error) {
+        throw new Error('error from editEvent BE', error.message)
+      }
+    },
+    joinEvent: async (root, { userId, eventId }, { currentUser }) => {
+      if (!currentUser) {
+        throw new AuthenticationError('Not authorized from BE & JoinEvent')
+      }
+      try {
+        const event = await Event.findById(eventId)
+        event.attendees.push(userId)
+        event.populate('attendees').execPopulate()
+
+        console.log(event)
+        await event.save()
+        return event
+      } catch (error) {
+        throw new Error(error.message)
+      }
     },
 
     createUser: async (root, { username, password }) => {
