@@ -107,6 +107,8 @@ const resolvers = {
     findEvent: async (root, { eventId }) => {
       try {
         return await Event.findById(eventId)
+          .populate('attendees')
+          .populate('host')
       } catch (error) {
         throw new Error('problem in BE with findEvent', error.message)
       }
