@@ -11,6 +11,8 @@ const {
   AuthenticationError,
 } = require('apollo-server')
 
+const { GraphQLScalarType, Kind } = require('graphql')
+
 const mongoose = require('mongoose')
 require('dotenv').config()
 const bcrypt = require('bcrypt')
@@ -45,6 +47,8 @@ mongoose
 
 // Construct a schema, using GraphQL schema language
 const typeDefs = gql`
+  scalar Date
+
   type User {
     username: String!
     passwordHash: String
@@ -64,6 +68,10 @@ const typeDefs = gql`
     location: String
     eventType: String
     eventPic: String
+    description: String
+    maxGuests: Int
+    eventDate: Date
+    createdAt: Date
     id: ID!
   }
 
@@ -80,12 +88,18 @@ const typeDefs = gql`
       eventType: String
       eventPic: String
       location: String
+      description: String
+      maxGuests: Int
+      eventDate: Date
     ): Event
     editEvent(
       title: String
       eventType: String
       eventPic: String
       location: String
+      description: String
+      maxGuests: Int
+      eventDate: Date
       eventId: ID!
     ): Event
     joinEvent(eventId: ID!, userId: ID!): Event
@@ -95,7 +109,25 @@ const typeDefs = gql`
   }
 `
 
+const dateScalar = new GraphQLScalarType({
+  name: 'Date',
+  description: 'Date custom scalar type',
+  serialize(value) {
+    return value // Convert outgoing Date to integer for JSON
+  },
+  parseValue(value) {
+    return new Date(value) // Convert incoming integer to Date
+  },
+  parseLiteral(ast) {
+    if (ast.kind === Kind.INT) {
+      return new Date(parseInt(ast.value, 10)) // Convert hard-coded AST string to integer and then to Date
+    }
+    return null // Invalid hard-coded value (not an integer)
+  },
+})
+
 const resolvers = {
+  Date: dateScalar,
   Query: {
     eventCount: () => Event.collection.countDocuments(),
     allEvents: async () => {
@@ -125,7 +157,15 @@ const resolvers = {
 
   Mutation: {
     addEvent: async (root, args, { currentUser }) => {
-      const { title, eventType, eventPic, location } = args
+      const {
+        title,
+        eventType,
+        eventPic,
+        location,
+        eventDate,
+        description,
+        maxGuests,
+      } = args
       if (!currentUser) {
         throw new AuthenticationError('NOT AUthorIZED, bub!!!')
       }
@@ -134,6 +174,9 @@ const resolvers = {
         eventType,
         eventPic,
         location,
+        eventDate,
+        description,
+        maxGuests,
         host: currentUser._id,
       })
       try {
@@ -147,20 +190,37 @@ const resolvers = {
       return event
     },
     editEvent: async (root, args, { currentUser }) => {
-      const { title, eventType, eventPic, location, eventId } = args
+      const {
+        title,
+        eventType,
+        eventPic,
+        location,
+        eventDate,
+        description,
+        maxGuests,
+        eventId,
+      } = args
       if (!currentUser) {
         throw new AuthenticationError('Not authorized from BE & editEvent')
       }
       try {
         const filter = { _id: eventId }
-        const update = { title, eventType, eventPic, location }
+        const update = {
+          title,
+          eventType,
+          eventPic,
+          location,
+          description,
+          maxGuests,
+          eventDate,
+        }
         const event = await Event.findOneAndUpdate(filter, update, {
           new: true,
         })
         await event.save()
         return event
       } catch (error) {
-        throw new Error('error from editEvent BE', error.message)
+        throw new UserInputError('error from editEvent BE', error)
       }
     },
     joinEvent: async (root, { userId, eventId }, { currentUser }) => {
