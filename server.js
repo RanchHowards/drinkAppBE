@@ -104,7 +104,12 @@ const typeDefs = gql`
     ): Event
     joinEvent(eventId: ID!, userId: ID!): Event
     leaveEvent(eventId: ID!, userId: ID!): Event
-    createUser(username: String!, password: String!): Token
+    createUser(
+      username: String!
+      password: String!
+      drink: String
+      pic: String
+    ): Token
     login(username: String!, password: String!): Token
   }
 `
@@ -113,7 +118,7 @@ const dateScalar = new GraphQLScalarType({
   name: 'Date',
   description: 'Date custom scalar type',
   serialize(value) {
-    return value // Convert outgoing Date to integer for JSON
+    return value.toISOString().slice(0, 16) // Convert outgoing Date to integer for JSON
   },
   parseValue(value) {
     return new Date(value) // Convert incoming integer to Date
@@ -255,11 +260,11 @@ const resolvers = {
       }
     },
 
-    createUser: async (root, { username, password }) => {
+    createUser: async (root, { username, password, drink, pic }) => {
       try {
         const salt = await bcrypt.genSalt(saltRounds)
         const passwordHash = await bcrypt.hash(password, salt)
-        const user = new User({ username, passwordHash })
+        const user = new User({ username, passwordHash, drink, pic })
         await user.save()
 
         const userForToken = {
