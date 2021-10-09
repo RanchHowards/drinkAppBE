@@ -78,6 +78,7 @@ const typeDefs = gql`
   type Query {
     eventCount: Int!
     allEvents: [Event]
+    weeksEvents: [Event]
     allUsers: [User]
     findEvent(eventId: ID!): Event
     me: User
@@ -140,6 +141,20 @@ const resolvers = {
     },
     allUsers: async () => {
       return await User.find({})
+    },
+    weeksEvents: async (root, args, context) => {
+      const today = new Date()
+      const week = new Date(today.setDate(today.getDate() + 6))
+      try {
+        return await Event.find({ eventDate: { $lte: week } })
+          .populate('attendees')
+          .populate('host')
+      } catch (error) {
+        throw new Error(
+          'someting wrong from BE query weeksEvents',
+          error.message
+        )
+      }
     },
     findEvent: async (root, { eventId }) => {
       try {
