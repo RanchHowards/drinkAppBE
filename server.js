@@ -60,6 +60,7 @@ const typeDefs = gql`
 
   type Token {
     value: String!
+    user: User
   }
   type Event {
     title: String
@@ -301,7 +302,7 @@ const resolvers = {
       }
     },
     login: async (root, { username, password }) => {
-      const user = await User.findOne({ username })
+      const user = await User.findOne({ username }).populate('myEvents')
       const passwordCorrect =
         user === null
           ? false
@@ -317,6 +318,7 @@ const resolvers = {
       }
       return {
         value: jwt.sign(userForToken, JWT_SECRET),
+        user,
       }
     },
   },
