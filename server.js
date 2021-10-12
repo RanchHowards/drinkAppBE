@@ -166,11 +166,17 @@ const resolvers = {
       }
     },
     me: async (root, args, { currentUser }) => {
+      if (!currentUser) {
+        return
+      }
       try {
         const user = await User.findById(currentUser._id).populate('myEvents')
         return user
       } catch (error) {
-        throw new Error('something wrong on the BACKEND', error.message)
+        throw new Error(
+          'something wrong with ME query on the BACKEND',
+          error.message
+        )
       }
     },
   },
@@ -288,6 +294,9 @@ const resolvers = {
         }
         return { value: jwt.sign(userForToken, JWT_SECRET) }
       } catch (error) {
+        if (error.code === 11000) {
+          throw new Error('Username is already taken')
+        }
         throw new UserInputError(error.message)
       }
     },
