@@ -28,6 +28,7 @@ const schema = new mongoose.Schema(
     },
     maxGuests: { type: String },
     eventDate: { type: Date, default: Date.now },
+    comments: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Comment' }],
   },
   { timestamps: true }
 )

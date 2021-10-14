@@ -1,9 +1,3 @@
-// const express = require('express')
-// const { ApolloServer, gql } = require('apollo-server-express')
-
-// const { graphqlHTTP } = require('express-graphql')
-// const { buildSchema } = require('graphql')
-// const cors = require('cors')
 const {
   ApolloServer,
   gql,
@@ -21,8 +15,7 @@ const jwt = require('jsonwebtoken')
 
 const User = require('./models/user')
 const Event = require('./models/event')
-
-// const app = express()
+const Comment = require('./models/comment')
 
 //MONGOOSE
 const JWT_SECRET = process.env.SECRET
@@ -73,6 +66,14 @@ const typeDefs = gql`
     maxGuests: Int
     eventDate: Date
     createdAt: Date
+    comments: [Comment]
+    id: ID!
+  }
+  type Comment {
+    comment: String
+    author: User!
+    event: Event!
+    responses: [Comment]
     id: ID!
   }
 
@@ -83,6 +84,8 @@ const typeDefs = gql`
     allUsers: [User]
     findEvent(eventId: ID!): Event
     me: User
+    allComments: [Comment]
+    findComments(eventId: ID!): [Comment]
   }
   type Mutation {
     addEvent(
@@ -113,6 +116,7 @@ const typeDefs = gql`
       pic: String
     ): Token
     login(username: String!, password: String!): Token
+    createComment(eventId: ID!, comment: String!, inResponseTo: ID): Comment
   }
 `
 
@@ -138,7 +142,16 @@ const resolvers = {
   Query: {
     eventCount: () => Event.collection.countDocuments(),
     allEvents: async () => {
-      return await Event.find({}).populate('host').populate('attendees')
+      return await Event.find({})
+        .populate('host')
+        .populate('attendees')
+        .populate({
+          path: 'comments',
+          populate: {
+            path: 'author',
+            model: 'User',
+          },
+        })
     },
     allUsers: async () => {
       return await User.find({})
@@ -162,6 +175,13 @@ const resolvers = {
         return await Event.findById(eventId)
           .populate('attendees')
           .populate('host')
+          .populate({
+            path: 'comments',
+            populate: {
+              path: 'author',
+              model: 'User',
+            },
+          })
       } catch (error) {
         throw new Error('problem in BE with findEvent', error.message)
       }
@@ -178,6 +198,23 @@ const resolvers = {
           'something wrong with ME query on the BACKEND',
           error.message
         )
+      }
+    },
+    allComments: async (root) => {
+      return await Comment.find({}).populate('author').populate('event')
+    },
+    findComments: async (root, { eventId }) => {
+      try {
+        const event = await Event.findByIdAndUpdate(eventId).populate({
+          path: 'comments',
+          populate: {
+            path: 'author',
+            model: 'User',
+          },
+        })
+        return event.comments
+      } catch (err) {
+        throw new Error('error from BackEnd findComments query', err.message)
       }
     },
   },
@@ -293,7 +330,7 @@ const resolvers = {
           username: user.username,
           id: user._id,
         }
-        return { value: jwt.sign(userForToken, JWT_SECRET) }
+        return { value: jwt.sign(userForToken, JWT_SECRET), user }
       } catch (error) {
         if (error.code === 11000) {
           throw new Error('Username is already taken')
@@ -319,6 +356,32 @@ const resolvers = {
       return {
         value: jwt.sign(userForToken, JWT_SECRET),
         user,
+      }
+    },
+    createComment: async (root, args, { currentUser }) => {
+      try {
+        const { eventId, comment } = args
+
+        const newComment = new Comment({
+          comment,
+          author: currentUser.id,
+          event: eventId,
+        })
+        newComment.populate('author').execPopulate()
+        await newComment.save()
+
+        const foundEvent = await Event.findById(eventId)
+        foundEvent.comments.push(newComment._id)
+        await foundEvent.save()
+
+        if (args.inResponseTo) {
+          const aboveComment = await Comment.findById(inResponseTo)
+          aboveComment.responses.push(newComment._id)
+          await aboveComment.save()
+        }
+        return newComment
+      } catch (err) {
+        throw new Error('error from BackEnd createComment', err.message)
       }
     },
   },
