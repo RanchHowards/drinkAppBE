@@ -63,11 +63,12 @@ const typeDefs = gql`
     eventType: String
     eventPic: String
     description: String
+    max: Boolean
     maxGuests: Int
     eventDate: Date
     createdAt: Date
     comments: [Comment]
-    id: ID!
+    id: ID
   }
   type Comment {
     comment: String
@@ -94,6 +95,7 @@ const typeDefs = gql`
       eventPic: String
       location: String
       description: String
+      max: Boolean
       maxGuests: Int
       eventDate: Date
     ): Event
@@ -103,10 +105,12 @@ const typeDefs = gql`
       eventPic: String
       location: String
       description: String
+      max: Boolean
       maxGuests: Int
       eventDate: Date
       eventId: ID!
     ): Event
+    deleteEvent(eventId: ID!): Event
     joinEvent(eventId: ID!, userId: ID!): Event
     leaveEvent(eventId: ID!, userId: ID!): Event
     createUser(
@@ -124,7 +128,7 @@ const dateScalar = new GraphQLScalarType({
   name: 'Date',
   description: 'Date custom scalar type',
   serialize(value) {
-    return value.toISOString().slice(0, 16) // Convert outgoing Date to integer for JSON
+    return value // removed toISOString()
   },
   parseValue(value) {
     return new Date(value) // Convert incoming integer to Date
@@ -142,7 +146,9 @@ const resolvers = {
   Query: {
     eventCount: () => Event.collection.countDocuments(),
     allEvents: async () => {
-      return await Event.find({})
+      const d = new Date()
+      const today = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+      return await Event.find({ eventDate: { $gte: today } })
         .populate('host')
         .populate('attendees')
         .populate({
@@ -228,11 +234,13 @@ const resolvers = {
         location,
         eventDate,
         description,
+        max,
         maxGuests,
       } = args
       if (!currentUser) {
         throw new AuthenticationError('NOT AUthorIZED, bub!!!')
       }
+
       const event = new Event({
         title,
         eventType,
@@ -240,6 +248,7 @@ const resolvers = {
         location,
         eventDate,
         description,
+        max,
         maxGuests,
         host: currentUser._id,
       })
@@ -261,6 +270,7 @@ const resolvers = {
         location,
         eventDate,
         description,
+        max,
         maxGuests,
         eventId,
       } = args
@@ -275,6 +285,7 @@ const resolvers = {
           eventPic,
           location,
           description,
+          max,
           maxGuests,
           eventDate,
         }
@@ -282,9 +293,21 @@ const resolvers = {
           new: true,
         })
         await event.save()
+
         return event
       } catch (error) {
         throw new UserInputError('error from editEvent BE', error)
+      }
+    },
+    deleteEvent: async (root, { eventId }, { currentUser }) => {
+      try {
+        const foundEvent = await Event.findById(eventId)
+
+        if (currentUser.id === foundEvent.host.toString()) {
+          await Event.findOneAndDelete({ _id: eventId })
+        } else throw Error
+      } catch (err) {
+        throw new Error('error from BE trying to delete event')
       }
     },
     joinEvent: async (root, { userId, eventId }, { currentUser }) => {
