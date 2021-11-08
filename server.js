@@ -22,7 +22,9 @@ const JWT_SECRET = process.env.SECRET
 
 const MONGODB_URI = process.env.MONGODB
 
-console.log('connecting to', MONGODB_URI)
+const PORT = process.env.PORT || 4000
+
+// console.log('connecting to', MONGODB_URI)
 
 mongoose
   .connect(MONGODB_URI, {
@@ -424,16 +426,7 @@ const server = new ApolloServer({
   },
 })
 
-// server.start().then((res) => {
-//   server.applyMiddleware({ app })
-// })
-// app.use(cors())
-
-// const PORT = 4000
-// app.listen(PORT, () => {
-//   console.log(`Server running on port ${PORT}`)
-// })
-server.listen().then(({ url, subscriptionsUrl }) => {
+server.listen({ port: PORT }).then(({ url, subscriptionsUrl }) => {
   console.log(`Server ready at ${url}`)
   console.log(`Subscriptions ready at ${subscriptionsUrl}`)
 })
