@@ -17,6 +17,8 @@ const User = require('./models/user')
 const Event = require('./models/event')
 const Comment = require('./models/comment')
 
+// const seedDB = require('./seed')
+
 //MONGOOSE
 const JWT_SECRET = process.env.SECRET
 
@@ -39,6 +41,9 @@ mongoose
   .catch((error) => {
     console.log('error connection to MongoDB:', error.message)
   })
+
+//SEED data - uncomment this to populate app
+// seedDB()
 
 // Construct a schema, using GraphQL schema language
 const typeDefs = gql`
