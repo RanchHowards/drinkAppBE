@@ -1,0 +1,15 @@
+{
+  "extends": ["eslint:recommended", "prettier"],
+  "root": true,
+  "rules": {
+    "prefer-template": [2],
+    "no-debugger": [1],
+    "no-console": [
+      1,
+      {
+        "allow": ["warn", "error", "info"]
+      }
+    ],
+    "no-use-before-define": "off"
+  }
+}
